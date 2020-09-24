@@ -1,0 +1,180 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Импортируем нужные библиотеки. Добавилась библиотека numpy для работы с массивами чисел."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import tensorflow as tf\n",
+    "import matplotlib.pyplot as plt\n",
+    "import numpy as np"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Пока будем работать с базой MNIST."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "mnist = tf.keras.datasets.mnist\n",
+    "(x_train, y_train),(x_test, y_test) = mnist.load_data()\n",
+    "x_train, x_test = x_train/255., x_test/255."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Переделаем функцию визуализации, чтобы она могла показывать как просто рукописные цифры из выборки для обучения или валидации, так и визуализировать вектор предсказания."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def display_digit(num, x, y, vector = None):\n",
+    "    label = y[num]\n",
+    "    image = x[num]\n",
+    "    if vector is None:\n",
+    "        plt.title('Example: {}  Label: {}'.format(num, label))\n",
+    "        plt.imshow(image, cmap=plt.get_cmap('gray_r'))\n",
+    "    else:\n",
+    "        plt.figure(figsize=(6,3))\n",
+    "        plt.subplot(1,2,1)\n",
+    "        plt.title('Real label: {}'.format(label))\n",
+    "        plt.imshow(image, cmap=plt.get_cmap('gray_r'))\n",
+    "        plt.subplot(1,2,2)\n",
+    "        thisplot = plt.bar(range(10), vector, color=\"#777777\")\n",
+    "        plt.ylim([0, 1]) \n",
+    "        plt.xticks([])\n",
+    "        plt.yticks([])\n",
+    "        predicted_label = np.argmax(vector)\n",
+    "        thisplot[predicted_label].set_color('red')\n",
+    "        plt.title('Predicted label: {}'.format(predicted_label))\n",
+    "    plt.show()\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Проверим, что функция работает при передаче ей только 3 параметров."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "display_digit(20, x_train, y_train)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Создадим сеть, как прежде. Скомпилируем, обучим немного, но для обучения укажем сразу валидационную выборку, чтобы она писалась в историю `history`."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "model = tf.keras.models.Sequential([\n",
+    "  tf.keras.layers.Flatten(input_shape=(28, 28)),\n",
+    "  tf.keras.layers.Dropout(0.2),\n",
+    "  tf.keras.layers.Dense(100, activation=tf.nn.relu),\n",
+    "  tf.keras.layers.Dropout(0.2),\n",
+    "  tf.keras.layers.Dense(10, activation=tf.nn.softmax)\n",
+    "])\n",
+    "model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.005),\n",
+    "              loss=tf.keras.losses.sparse_categorical_crossentropy,\n",
+    "              metrics=['accuracy'])\n",
+    "history = model.fit(x_train, y_train, epochs=50, validation_data=(x_test, y_test))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Мы видим в числах точность и потери для обучающей и валидационной выборки для каждой эпохи. Нарисуем их в виде графика обучения. Будем выводить функцию потерь loss. Можно и точность acc, но он менее показателен."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "plt.figure(figsize=(16,10))\n",
+    "plt.xlabel('Epochs')\n",
+    "plt.ylabel(\"Sparse_categorical_crossentropy\")\n",
+    "val = plt.plot(history.epoch, history.history['val_'+'loss'],\n",
+    "                   '--', label='Val')\n",
+    "plt.plot(history.epoch, history.history[\"loss\"], color=val[0].get_color(),\n",
+    "             label='Train')\n",
+    "plt.legend()\n",
+    "plt.xlim([0,max(history.epoch)])\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Теперь проверим вывод функции `display_digit` еще раз, но уже с гистограммой предсказанных вероятностей. Сделаем это для первых 10 элементов валидационной выборки."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "for i in range(10):\n",
+    "    display_digit(i,x_test,y_test,model(x_test[i:i+1,:,:])[0])"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "neural1",
+   "language": "python",
+   "name": "neural1"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.6.9"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
